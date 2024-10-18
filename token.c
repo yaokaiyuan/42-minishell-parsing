@@ -1,62 +1,47 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include "minishell.h"
 
-char* ft_strtok(char* str, const char* delimiters) {
-    static char* last = NULL; // 保存上次调用的状态
-    char* current;
+char* ft_strtok(char* str, const char* delim) {
+    static char* current_position = NULL;
+    char* token;
+    int in_single_quote = 0;
+    int in_double_quote = 0;
 
-    // 如果 str 不是 NULL，说明是第一次调用
     if (str != NULL) {
-        last = str; // 初始化 last
+        current_position = str;  // 设置当前解析的位置
     }
 
-    // 如果 last 为空，说明没有更多的标记
-    if (last == NULL) {
+    // 如果当前字符串已到达结尾，则返回NULL
+    if (current_position == NULL || *current_position == '\0') {
         return NULL;
     }
 
     // 跳过前导分隔符
-    while (*last && strchr(delimiters, *last)) {
-        last++;
+    while (*current_position && strchr(delim, *current_position) && !in_single_quote && !in_double_quote) {
+        current_position++;
     }
 
-    // 如果到达字符串末尾，返回 NULL
-    if (*last == '\0') {
-        last = NULL;
+    // 如果到达了字符串结尾，则返回NULL
+    if (*current_position == '\0') {
         return NULL;
     }
 
-    // 找到标记的结束位置
-    current = last;
-    while (*current && !strchr(delimiters, *current)) {
-        current++;
+    // 找到token的开始位置
+    token = current_position;
+
+    // 解析token，直到遇到分隔符或结束引号
+    while (*current_position && (in_single_quote || in_double_quote || !strchr(delim, *current_position))) {
+        if (*current_position == '\'') {
+            in_single_quote = !in_single_quote;  // 切换单引号状态
+        } else if (*current_position == '\"') {
+            in_double_quote = !in_double_quote;  // 切换双引号状态
+        }
+        current_position++;
     }
 
-    // 如果找到标记的结束位置，替换为 '\0'，并更新 last
-    if (*current) {
-        *current = '\0';
-        last = current + 1;
-    } else {
-        last = NULL; // 到达字符串末尾
+    // 将当前的位置设置为结束符，以便后续调用返回token
+    if (*current_position) {
+        *current_position++ = '\0';  // 结束当前token，并移动到下一个字符
     }
 
-    return str; // 返回当前标记
-}
-
-// 主函数示例
-int main() {
-    char input[] = "Hello, world! This is a test.";
-    const char* delimiters = " ,.!"; // 定义分隔符
-    char* token;
-
-    // 使用 ft_strtok 进行分词
-    token = ft_strtok(input, delimiters);
-    while (token != NULL) {
-        printf("token: %s\n", token);
-        token = ft_strtok(NULL, delimiters);
-    }
-
-    return 0;
+    return token;  // 返回token
 }
