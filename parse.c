@@ -6,7 +6,7 @@
 /*   By: ykai-yua <ykai-yua@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/23 14:03:52 by ykai-yua          #+#    #+#             */
-/*   Updated: 2024/10/23 19:00:16 by ykai-yua         ###   ########.fr       */
+/*   Updated: 2024/10/23 19:22:50 by ykai-yua         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,32 +65,42 @@ void handle_error(const char* msg) {
     exit(1);
 }
 
-// 解析重定向符号并检查错误
 Node* parse_redirect(Node* cmd_node, char* token, char** next_token) {
     if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0 || strcmp(token, ">>") == 0) {
         *next_token = ft_strtok(NULL, " ");
         if (*next_token == NULL) {
             handle_error("Missing file after redirection.");
         }
-        // Create a new node for the redirection
-        Node* redirect_node = create_node(token);
-        redirect_node->left = cmd_node; // Link the command node
-        Node* file_node = create_node(*next_token); // Create a node for the file
-        redirect_node->right = file_node; // Link the file node
-        return redirect_node; // Return the new redirect node
+
+        // Create a new node for the redirection file
+        Node* file_node = create_node(*next_token);
+
+        // Assign redirection based on the token type
+        if (strcmp(token, "<") == 0) {
+            if (cmd_node->left != NULL) {
+                handle_error("Multiple input redirections not supported.");
+            }
+            cmd_node->left = file_node;  // Assign file as input
+        } else {
+            if (cmd_node->right != NULL) {
+                handle_error("Multiple output redirections not supported.");
+            }
+            cmd_node->right = file_node;  // Assign file as output
+        }
     } else if (strcmp(token, "<<") == 0) {
         *next_token = ft_strtok(NULL, " ");
         if (*next_token == NULL) {
             handle_error("Missing delimiter for here document.");
         }
-        // Here document handling
-        char* delimiter = strdup(*next_token); // Store the delimiter
-        Node* here_doc_node = create_node("<<");
-        here_doc_node->left = cmd_node; // Link the command node
-        here_doc_node->right = create_node(delimiter); // Create a node for the delimiter
-        return here_doc_node; // Return the new here document node
+
+        // Create a new node for the here document
+        Node* delimiter_node = create_node(*next_token);
+        if (cmd_node->left != NULL) {
+            handle_error("Multiple input redirections not supported.");
+        }
+        cmd_node->left = delimiter_node;  // Treat here document as input redirection
     }
-    return cmd_node; // Return the command node if no redirection
+    return cmd_node;  // Return the updated command node
 }
 
 // 解析管道符号并检查错误
@@ -140,6 +150,10 @@ Node* create_cmd_tree(char* token) {
         else if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0 || strcmp(token, ">>") == 0 || strcmp(token, "<<") == 0) {
             current_cmd = parse_redirect(current_cmd, token, &next_token);
             token = next_token;  // Skip the filename or delimiter
+            // Update the root after redirection
+            if (root == NULL) {
+                root = current_cmd;
+            }
         }
         // Handle normal commands or parameters
         else {
@@ -154,6 +168,7 @@ Node* create_cmd_tree(char* token) {
 
     return root; // Return the root of the command tree
 }
+
 
 // 打印二叉树（遵循 Bash 的执行顺序）
 void print_tree(Node* node) {
