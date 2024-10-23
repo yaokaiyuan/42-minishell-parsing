@@ -6,13 +6,14 @@
 /*   By: ykai-yua <ykai-yua@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/05 09:04:59 by ykai-yua          #+#    #+#             */
-/*   Updated: 2024/10/05 09:12:45 by ykai-yua         ###   ########.fr       */
+/*   Updated: 2024/10/23 15:26:41 by ykai-yua         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef MINISHELL_H
 #define MINISHELL_H
 
+#include "libft/libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

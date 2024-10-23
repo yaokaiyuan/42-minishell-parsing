@@ -1,7 +1,16 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parse.c                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: ykai-yua <ykai-yua@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/10/23 14:03:52 by ykai-yua          #+#    #+#             */
+/*   Updated: 2024/10/23 14:52:32 by ykai-yua         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "minishell.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 char* get_variable_value(const char* var_name) {
     return getenv(var_name);
@@ -58,19 +67,30 @@ void handle_error(const char* msg) {
 
 // 解析重定向符号并检查错误
 Node* parse_redirect(Node* cmd_node, char* token, char** next_token) {
-    if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0) {
+    if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0 || strcmp(token, ">>") == 0) {
         *next_token = ft_strtok(NULL, " ");
         if (*next_token == NULL) {
             handle_error("Missing file after redirection.");
         }
-        // 创建重定向节点
+        // Create a new node for the redirection
         Node* redirect_node = create_node(token);
-        redirect_node->left = cmd_node;
-        Node* file_node = create_node(*next_token);
-        redirect_node->right = file_node;
-        return redirect_node;
+        redirect_node->left = cmd_node; // Link the command node
+        Node* file_node = create_node(*next_token); // Create a node for the file
+        redirect_node->right = file_node; // Link the file node
+        return redirect_node; // Return the new redirect node
+    } else if (strcmp(token, "<<") == 0) {
+        *next_token = ft_strtok(NULL, " ");
+        if (*next_token == NULL) {
+            handle_error("Missing delimiter for here document.");
+        }
+        // Here document handling
+        char* delimiter = strdup(*next_token); // Store the delimiter
+        Node* here_doc_node = create_node("<<");
+        here_doc_node->left = cmd_node; // Link the command node
+        here_doc_node->right = create_node(delimiter); // Create a node for the delimiter
+        return here_doc_node; // Return the new here document node
     }
-    return cmd_node;
+    return cmd_node; // Return the command node if no redirection
 }
 
 // 解析管道符号并检查错误
@@ -109,57 +129,30 @@ Node* create_cmd_tree(char* token) {
     Node* root = NULL;
     Node* current_cmd = NULL;
     char* next_token = NULL;
-    int single_quote_count = 0;
-    int double_quote_count = 0;
 
     while (token != NULL) {
-        // 统计单引号和双引号的数量
-        for (char* p = token; *p != '\0'; p++) {
-            if (*p == '\'') {
-                single_quote_count++;
-            } else if (*p == '\"') {
-                double_quote_count++;
-            }
-        }
-
-        // 处理管道符号
+        // Handle pipe symbol
         if (strcmp(token, "|") == 0) {
-            root = parse_pipe(current_cmd);  // 解析当前命令并处理管道
-            current_cmd = NULL;  // 管道后开始新命令
+            root = parse_pipe(current_cmd);  // Parse current command and handle pipe
+            current_cmd = NULL;  // Start a new command after the pipe
         }
-        // 处理重定向符号
-        else if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0) {
+        // Handle redirection symbols
+        else if (strcmp(token, "<") == 0 || strcmp(token, ">") == 0 || strcmp(token, ">>") == 0 || strcmp(token, "<<") == 0) {
             current_cmd = parse_redirect(current_cmd, token, &next_token);
-            token = next_token;  // 跳过文件名
+            token = next_token;  // Skip the filename or delimiter
         }
-        // 处理普通命令或参数
+        // Handle normal commands or parameters
         else {
-            // 处理双引号内容
-            if (strchr(token, '\"')) {
-                char* processed_token = process_double_quotes(token);
-                current_cmd = parse_cmd(current_cmd, processed_token);  // 解析命令和参数
-                free(processed_token);  // 释放处理过的token
-            } else {
-                current_cmd = parse_cmd(current_cmd, token);  // 解析命令和参数
-            }
-
+            current_cmd = parse_cmd(current_cmd, token);  // Parse command and parameters
             if (root == NULL) {
-                root = current_cmd;  // 第一个命令为根节点
+                root = current_cmd;  // The first command is the root node
             }
         }
 
         token = ft_strtok(NULL, " ");
     }
 
-    // 检查单引号和双引号是否成对出现
-    if (single_quote_count % 2 != 0) {
-        handle_error("Unmatched single quotes in command line.");
-    }
-    if (double_quote_count % 2 != 0) {
-        handle_error("Unmatched double quotes in command line.");
-    }
-
-    return root;
+    return root; // Return the root of the command tree
 }
 
 // 打印二叉树（遵循 Bash 的执行顺序）
@@ -175,7 +168,7 @@ void print_tree(Node* node) {
         print_tree(node->right);
     }
     // 对于重定向操作，打印时应保证左子树先于右子树
-    else if (strcmp((char*)node->data, "<") == 0 || strcmp((char*)node->data, ">") == 0) {
+    else if (strcmp((char*)node->data, "<") == 0 || strcmp((char*)node->data, ">") == 0 || strcmp((char*)node->data, ">>") || strcmp((char*)node->data, "<<")) {
         print_tree(node->left);
         printf("%s ", (char*)node->data);  // 打印重定向符号
         print_tree(node->right);  // 打印重定向文件
